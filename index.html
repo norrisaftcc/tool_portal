@@ -13,6 +13,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
     <!-- Babel for JSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <!-- Raylib WebAssembly Bridge -->
+    <script src="games/raylib-bridge.js"></script>
     
     <style>
         /* Custom scrollbar styles */
@@ -103,7 +105,8 @@
                 hot: true,
                 multiplier: '2x',
                 playing: 256,
-                available: true
+                available: true,
+                type: 'iframe'
             },
             slots: {
                 id: 'slots',
@@ -113,7 +116,19 @@
                 hot: true,
                 multiplier: '10x',
                 playing: 189,
-                available: true
+                available: true,
+                type: 'iframe'
+            },
+            raylibSlots: {
+                id: 'raylibSlots',
+                name: 'Fruity Slots',
+                path: 'raylib-slots.html',
+                category: 'slots',
+                hot: true,
+                multiplier: '25x',
+                playing: 215,
+                available: true,
+                type: 'wasm'
             },
             poker: {
                 id: 'poker',
@@ -123,7 +138,8 @@
                 hot: false,
                 multiplier: '5x',
                 playing: 328,
-                available: false
+                available: false,
+                type: 'iframe'
             },
             roulette: {
                 id: 'roulette',
@@ -133,7 +149,8 @@
                 hot: false,
                 multiplier: '35x',
                 playing: 145,
-                available: false
+                available: false,
+                type: 'iframe'
             }
         };
         
@@ -142,6 +159,8 @@
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
             const game = GAMES[gameId];
+            const containerRef = React.useRef(null);
+            const raylibBridgeRef = React.useRef(null);
             
             if (!game) {
                 return (
@@ -169,32 +188,119 @@
                 setError("Failed to load the game. Please try again later.");
             };
             
-            return (
-                <div className="game-container active">
-                    <button className="back-button" onClick={onClose}>
-                        <ArrowLeft size={16} className="mr-2" /> Back to Portal
-                    </button>
-                    
-                    {loading && <div className="loading-spinner"></div>}
-                    
-                    {error ? (
-                        <div className="flex items-center justify-center h-full">
-                            <div className="text-white text-center">
-                                <h2 className="text-2xl mb-4">Error</h2>
-                                <p>{error}</p>
+            // Initialize WebAssembly game if needed
+            React.useEffect(() => {
+                if (game.type === 'wasm') {
+                    if (containerRef.current && typeof RaylibBridge !== 'undefined') {
+                        // Create portal interface for communication between portal and game
+                        const portalInterface = {
+                            updateCredits: (amount, reason) => {
+                                console.log(`Credits ${amount > 0 ? 'won' : 'bet'}: ${Math.abs(amount)} (${reason})`);
+                                
+                                // Update the CasinoPortal component's credits
+                                window.dispatchEvent(new CustomEvent('update-credits', {
+                                    detail: { amount, reason }
+                                }));
+                            },
+                            showMessage: (message, type) => {
+                                console.log(`Game message: ${message} (${type})`);
+                                
+                                // Trigger message display in the portal
+                                window.dispatchEvent(new CustomEvent('show-message', {
+                                    detail: { message, type }
+                                }));
+                            },
+                            closeGame: () => {
+                                console.log('Game requested to close');
+                                onClose();
+                            }
+                        };
+                        
+                        // Initialize the WebAssembly bridge
+                        try {
+                            // Cleanup any existing bridge
+                            if (raylibBridgeRef.current) {
+                                raylibBridgeRef.current.cleanup();
+                            }
+                            
+                            // Create a new bridge
+                            raylibBridgeRef.current = new RaylibBridge('wasm-game-container', portalInterface);
+                            
+                            // Load the game
+                            raylibBridgeRef.current.loadGame(game.path);
+                            
+                            // Hide loading spinner
+                            setTimeout(() => {
+                                setLoading(false);
+                            }, 500);
+                        } catch (err) {
+                            console.error('Error initializing WebAssembly game:', err);
+                            setError(`Failed to initialize game: ${err.message}`);
+                            setLoading(false);
+                        }
+                    }
+                }
+                
+                // Cleanup function
+                return () => {
+                    if (raylibBridgeRef.current) {
+                        raylibBridgeRef.current.cleanup();
+                        raylibBridgeRef.current = null;
+                    }
+                };
+            }, [game, onClose]);
+            
+            // Render different container based on game type
+            if (game.type === 'wasm') {
+                return (
+                    <div className="game-container active">
+                        <button className="back-button" onClick={onClose}>
+                            <ArrowLeft size={16} className="mr-2" /> Back to Portal
+                        </button>
+                        
+                        {loading && <div className="loading-spinner"></div>}
+                        
+                        {error ? (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-white text-center">
+                                    <h2 className="text-2xl mb-4">Error</h2>
+                                    <p>{error}</p>
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        <iframe 
-                            src={game.path} 
-                            className="game-iframe" 
-                            onLoad={handleIframeLoad} 
-                            onError={handleIframeError}
-                            title={game.name}
-                        ></iframe>
-                    )}
-                </div>
-            );
+                        ) : (
+                            <div id="wasm-game-container" ref={containerRef} className="w-full h-full"></div>
+                        )}
+                    </div>
+                );
+            } else {
+                // Regular iframe-based game
+                return (
+                    <div className="game-container active">
+                        <button className="back-button" onClick={onClose}>
+                            <ArrowLeft size={16} className="mr-2" /> Back to Portal
+                        </button>
+                        
+                        {loading && <div className="loading-spinner"></div>}
+                        
+                        {error ? (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-white text-center">
+                                    <h2 className="text-2xl mb-4">Error</h2>
+                                    <p>{error}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <iframe 
+                                src={game.path} 
+                                className="game-iframe" 
+                                onLoad={handleIframeLoad} 
+                                onError={handleIframeError}
+                                title={game.name}
+                            ></iframe>
+                        )}
+                    </div>
+                );
+            }
         };
         
         // Main Casino Portal Component
@@ -216,6 +322,38 @@
             const closeGame = () => {
                 setCurrentGame(null);
             };
+            
+            // Handle credit updates from WebAssembly games
+            React.useEffect(() => {
+                const handleCreditsUpdate = (event) => {
+                    const { amount, reason } = event.detail;
+                    
+                    setCredits(prevCredits => {
+                        const newAmount = Math.max(0, prevCredits + amount);
+                        return newAmount;
+                    });
+                    
+                    // Show a message for significant wins
+                    if (amount > 0) {
+                        showGameMessage(`Won ${amount} credits!`, 'success');
+                    }
+                };
+                
+                const handleShowMessage = (event) => {
+                    const { message, type } = event.detail;
+                    showGameMessage(message, type);
+                };
+                
+                // Add event listeners
+                window.addEventListener('update-credits', handleCreditsUpdate);
+                window.addEventListener('show-message', handleShowMessage);
+                
+                // Remove event listeners on cleanup
+                return () => {
+                    window.removeEventListener('update-credits', handleCreditsUpdate);
+                    window.removeEventListener('show-message', handleShowMessage);
+                };
+            }, []);
             
             // Handle messages from games
             React.useEffect(() => {
