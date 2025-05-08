@@ -11,11 +11,13 @@ PULSE Play is a mobile-first casino games portal targeting males 18-25 with simp
 - **Shared Virtual Currency**: Credits are maintained across all games
 - **Achievement System**: In-game achievements are tracked portal-wide
 - **Responsive Design**: Works on mobile and desktop devices
+- **Multiple Game Technologies**: Support for both HTML/JS and WebAssembly games
 
 ## Available Games
 
-1. **Blackjack Blitz**: Fast-paced blackjack with betting system
-2. **Golden Fortune**: Slot machine with multiple paylines and bonus features
+1. **Blackjack Blitz**: Fast-paced blackjack with betting system (HTML/JS)
+2. **Golden Fortune**: Slot machine with multiple paylines and bonus features (HTML/JS)
+3. **Fruity Slots**: High-performance slot machine with realistic physics (WebAssembly/raylib)
 
 ## Getting Started
 
@@ -35,22 +37,41 @@ The portal is built using:
 
 ### Game Integration
 
-Games are integrated with the portal using:
+Games are integrated with the portal using one of two methods:
+
+#### HTML/JavaScript Games
 - Iframe-based loading
 - PostMessage API for communication
 - GameBridge.js for standardized messaging
 
+#### WebAssembly Games
+- Compiled C++ code using Emscripten
+- Custom container component instead of iframes
+- RaylibBridge.js for WebAssembly/JavaScript interop
+- Event-based communication system
+
 ## Game Integration
 
-To integrate a new game, follow these steps:
+### Adding an HTML/JavaScript Game
 
 1. Create your game as a standalone HTML file
 2. Include the GameBridge.js script in your game
 3. Initialize GameBridge in your game
-4. Update the GAMES configuration in index.html
+4. Update the GAMES configuration in index.html with type: 'iframe'
 5. Test your integration
 
-For detailed integration instructions, see [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md).
+### Adding a WebAssembly Game
+
+1. Create your C/C++ game (or adapt an existing one)
+2. Modify the code to use Emscripten's APIs for browser integration
+3. Set up a Makefile for compilation
+4. Compile the game to WebAssembly using Emscripten
+5. Update the GAMES configuration in index.html with type: 'wasm'
+6. Test your integration
+
+For detailed integration instructions, see:
+- [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) - General integration guide
+- [RAYLIB_INTEGRATION.md](RAYLIB_INTEGRATION.md) - WebAssembly-specific guide
 
 ## Communication Protocol
 
