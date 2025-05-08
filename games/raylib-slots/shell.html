@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Raylib Slot Machine</title>
+    <style>
+      body {
+        font-family: arial;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #0A0A1A;
+      }
+
+      .emscripten {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        margin: 0px;
+        border: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: block;
+        image-rendering: optimizeSpeed;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -o-crisp-edges;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: optimize-contrast;
+        image-rendering: crisp-edges;
+        image-rendering: pixelated;
+        -ms-interpolation-mode: nearest-neighbor;
+      }
+
+      .loader {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #0A0A1A;
+        color: #FFD700;
+        z-index: 100;
+        transition: opacity 0.5s;
+      }
+      
+      .loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 215, 0, 0.3);
+        border-radius: 50%;
+        border-top-color: #FFD700;
+        animation: spin 1s infinite linear;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .progress-bar {
+        width: 300px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        position: relative;
+      }
+
+      .progress {
+        width: 0%;
+        height: 100%;
+        background: #FFD700;
+        transition: width 0.3s;
+      }
+
+      .progress-text {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+        color: #111;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      .error {
+        background-color: #e74c3c;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        margin-top: 20px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <div class="progress-bar">
+        <div class="progress" id="progress"></div>
+        <div class="progress-text" id="progress-text">0%</div>
+      </div>
+      <div id="status">Downloading...</div>
+      <div class="error" id="error">An error occurred while loading the game.</div>
+    </div>
+    
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+    
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var progressTextElement = document.getElementById('progress-text');
+      var loaderElement = document.getElementById('loader');
+      var errorElement = document.getElementById('error');
+
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function() {
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            console.log(text);
+          };
+        })(),
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          console.error(text);
+          
+          if (text.includes('error')) {
+            errorElement.style.display = 'block';
+            errorElement.textContent = text;
+          }
+        },
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          
+          if (m && now - Module.setStatus.last.time < 30) return; // If this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          
+          if (m) {
+            text = m[1];
+            var progress = parseInt(m[2])*100 / parseInt(m[4]);
+            progressElement.style.width = progress + '%';
+            progressTextElement.textContent = progress.toFixed(0) + '%';
+            statusElement.textContent = text;
+          } else {
+            progressElement.style.width = '100%';
+            progressTextElement.textContent = '100%';
+            statusElement.textContent = text;
+            
+            if (text === '') {
+              // Game is fully loaded
+              setTimeout(function() {
+                loaderElement.classList.add('hidden');
+              }, 500);
+            }
+          }
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      
+      Module.setStatus('Downloading...');
+      
+      window.onerror = function(event) {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        errorElement.style.display = 'block';
+        Module.setStatus = function(text) {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+      
+      // Handle portal communication
+      window.addEventListener('message', function(event) {
+        // Verify message is from parent (portal)
+        if (event.source !== window.parent) return;
+        
+        const data = event.data;
+        
+        // Handle portal messages
+        if (data && data.type === 'PORTAL_EVENT') {
+          switch (data.action) {
+            case 'UPDATE_CREDITS':
+              // Update credits from portal
+              if (Module && Module.ccall) {
+                Module.ccall('updateCredits', null, ['number'], [data.amount]);
+              }
+              break;
+              
+            case 'FORCE_WIN':
+              // Force a win (for testing)
+              if (Module && Module.ccall) {
+                Module.ccall('forceWin', null, [], []);
+              }
+              break;
+          }
+        }
+      });
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
