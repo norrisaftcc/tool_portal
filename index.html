@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE Play - Casino Games Portal</title>
+    <!-- React and ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <style>
+        /* Custom scrollbar styles */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Game container styles */
+        .game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            background-color: #0A0A1A;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .game-iframe {
+            flex: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Transition animations */
+        .fade-enter {
+            opacity: 0;
+        }
+        .fade-enter-active {
+            opacity: 1;
+            transition: opacity 300ms ease-in;
+        }
+        .fade-exit {
+            opacity: 1;
+        }
+        .fade-exit-active {
+            opacity: 0;
+            transition: opacity 300ms ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Import icons from Lucide
+        const { Square, Trophy, Zap, Gift, Bell, Menu, Search, ChevronRight, User, LogIn, ArrowLeft } = lucide;
+
+        // Game constants
+        const GAMES = {
+            BLACKJACK: {
+                id: 'blackjack',
+                title: 'Blackjack Blitz',
+                path: 'blackjack-game.html',
+                description: 'Classic casino card game where you aim to beat the dealer without going over 21.',
+                category: 'card',
+                multiplier: '2x',
+                playing: 256,
+                hot: true,
+                available: true
+            },
+            SLOTS: {
+                id: 'slots',
+                title: 'Golden Fortune',
+                path: 'slots-html.html',
+                description: 'Colorful slot machine game with multiple paylines and bonus features.',
+                category: 'slots',
+                multiplier: '10x',
+                playing: 189,
+                hot: true,
+                available: true
+            },
+            POKER: {
+                id: 'poker',
+                title: 'Quick Poker',
+                path: '#',
+                description: 'Fast-paced poker variant with simplified rules and quick rounds.',
+                category: 'card',
+                multiplier: '5x',
+                playing: 328,
+                available: false
+            },
+            ROULETTE: {
+                id: 'roulette',
+                title: 'Roulette Fever',
+                path: '#',
+                description: 'Classic casino roulette with multiple betting options.',
+                category: 'table',
+                multiplier: '35x',
+                playing: 145,
+                available: false
+            }
+        };
+
+        // Main Casino Portal Component
+        const CasinoPortal = () => {
+            // State for currently active game
+            const [activeGame, setActiveGame] = React.useState(null);
+            
+            // Function to launch a game
+            const launchGame = (game) => {
+                if (game.available) {
+                    setActiveGame(game);
+                }
+            };
+            
+            // Function to return to the portal from a game
+            const returnToPortal = () => {
+                setActiveGame(null);
+            };
+
+            // Render active game or portal
+            if (activeGame) {
+                return <GameView game={activeGame} onReturn={returnToPortal} />;
+            }
+
+            // Render portal if no game is active
+            return (
+                <div className="bg-gray-900 text-white min-h-screen">
+                    {/* Header */}
+                    <header className="bg-gradient-to-r from-indigo-900 to-purple-900 px-4 py-3 flex justify-between items-center sticky top-0 z-50 shadow-lg">
+                        <div className="flex items-center space-x-1">
+                            <Square className="text-purple-400" size={24} />
+                            <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">PULSE</span>
+                            <span className="font-bold text-xl">Play</span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-4">
+                            <button className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-full text-sm font-bold transition">
+                                Sign Up
+                            </button>
+                            <button className="text-purple-400 hover:text-purple-300">
+                                <LogIn size={20} />
+                            </button>
+                            <button className="md:hidden">
+                                <Menu size={20} />
+                            </button>
+                        </div>
+                    </header>
+                    
+                    {/* Hero Section */}
+                    <section className="relative">
+                        <div className="bg-gradient-to-r from-indigo-800 to-purple-800 px-4 py-8 md:py-12">
+                            <div className="max-w-lg mx-auto text-center">
+                                <h1 className="text-3xl md:text-4xl font-extrabold mb-2">
+                                    Play. Win. <span className="text-yellow-400">Repeat.</span>
+                                </h1>
+                                <p className="text-purple-200 mb-6">
+                                    Quick games. Real rewards. Zero commitment.
+                                </p>
+                                <button 
+                                    onClick={() => launchGame(GAMES.BLACKJACK)}
+                                    className="bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-gray-900 font-bold px-6 py-3 rounded-full shadow-lg transition transform hover:scale-105"
+                                >
+                                    PLAY NOW
+                                </button>
+                                <p className="text-xs text-purple-300 mt-3">
+                                    New players get 500 bonus coins
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Featured Games Slider */}
+                        <div className="relative -mt-6 px-4 pb-4">
+                            <div className="flex overflow-x-auto pb-2 space-x-4 scrollbar-hide">
+                                {[
+                                    GAMES.BLACKJACK,
+                                    GAMES.SLOTS,
+                                    GAMES.POKER,
+                                    GAMES.ROULETTE
+                                ].map((game, index) => (
+                                    <div 
+                                        key={index} 
+                                        className="relative flex-shrink-0 w-48 h-36 bg-gradient-to-br from-blue-600 to-purple-800 rounded-lg shadow-lg overflow-hidden cursor-pointer"
+                                        onClick={() => game.available && launchGame(game)}
+                                    >
+                                        <div className="absolute inset-0 opacity-20 bg-pattern"></div>
+                                        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                                            <div className="text-sm font-bold">{game.title}</div>
+                                            <div className="flex items-center mt-1">
+                                                {game.hot && (
+                                                    <div className="text-xs text-yellow-400 flex items-center">
+                                                        <Trophy size={12} className="mr-1" /> Top Pick
+                                                    </div>
+                                                )}
+                                                {!game.available && (
+                                                    <div className="text-xs text-gray-400">
+                                                        Coming Soon
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                    
+                    {/* Game Categories */}
+                    <section className="px-4 py-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Categories</h2>
+                            <button className="text-purple-400 text-sm flex items-center">
+                                View All <ChevronRight size={16} />
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {[
+                                { name: 'Card Games', game: GAMES.BLACKJACK, icon: <div className="text-red-500"><span className="text-xl">♠️</span></div> },
+                                { name: 'Slots', game: GAMES.SLOTS, icon: <div className="text-yellow-500"><Zap size={20} /></div> },
+                                { name: 'Table Games', game: GAMES.ROULETTE, icon: <div className="text-green-500"><span className="text-xl">🎲</span></div> },
+                                { name: 'Jackpots', path: '#', icon: <div className="text-purple-500"><Trophy size={20} /></div> }
+                            ].map((category, index) => (
+                                <div 
+                                    key={index} 
+                                    className="bg-gray-800 rounded-lg p-4 text-center hover:bg-gray-700 transition cursor-pointer"
+                                    onClick={() => category.game && category.game.available && launchGame(category.game)}
+                                >
+                                    <div className="flex justify-center mb-2">
+                                        {category.icon}
+                                    </div>
+                                    <div className="text-sm font-medium">{category.name}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                    
+                    {/* Popular Games */}
+                    <section className="px-4 py-6 bg-gradient-to-b from-gray-900 to-gray-800">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Popular Now</h2>
+                            <div className="flex space-x-2">
+                                <button className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm">
+                                    <ChevronRight className="rotate-180" size={16} />
+                                </button>
+                                <button className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-sm">
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {[
+                                GAMES.BLACKJACK,
+                                GAMES.SLOTS,
+                                GAMES.POKER,
+                                GAMES.ROULETTE,
+                                { ...GAMES.ROULETTE, title: 'Roulette Master' },
+                                { id: 'dice', title: 'Dice Rush', path: '#', multiplier: '6x', playing: 203, available: false }
+                            ].map((game, index) => (
+                                <div 
+                                    key={index} 
+                                    className={`relative bg-gray-800 rounded-lg overflow-hidden shadow-lg group ${game.available ? 'cursor-pointer' : 'opacity-70'}`}
+                                    onClick={() => game.available && launchGame(game)}
+                                >
+                                    <div className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 relative">
+                                        <div className="absolute top-2 left-2 bg-black/50 text-yellow-400 text-xs px-2 py-1 rounded-full flex items-center">
+                                            <Trophy size={12} className="mr-1" /> {game.multiplier}
+                                        </div>
+                                    </div>
+                                    <div className="p-3">
+                                        <h3 className="font-bold">{game.title}</h3>
+                                        <div className="text-xs text-gray-400 flex items-center">
+                                            <User size={12} className="mr-1" /> {game.playing} playing
+                                        </div>
+                                        <button 
+                                            className={`mt-2 w-full ${game.available ? 'bg-purple-600 hover:bg-purple-500' : 'bg-gray-600'} text-white py-1 rounded text-sm font-medium transition`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (game.available) launchGame(game);
+                                            }}
+                                            disabled={!game.available}
+                                        >
+                                            {game.available ? 'Play' : 'Coming Soon'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                    
+                    {/* Bonuses Section */}
+                    <section className="px-4 py-6">
+                        <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-xl p-4 relative overflow-hidden">
+                            <div className="relative z-10">
+                                <div className="flex items-start mb-3">
+                                    <Gift className="text-yellow-400 mr-2 flex-shrink-0" size={24} />
+                                    <div>
+                                        <h3 className="font-bold text-lg">Daily Bonus</h3>
+                                        <p className="text-sm text-blue-200">Come back daily for more rewards!</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2 mb-4">
+                                    {[1, 2, 3, 4, 5, 6, 7].map((day, i) => (
+                                        <div 
+                                            key={i} 
+                                            className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold ${i < 3 ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300'}`}
+                                        >
+                                            {day}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button className="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm transition">
+                                    Claim Day 4 Bonus
+                                </button>
+                            </div>
+                            <div className="absolute -right-4 -bottom-4 opacity-10">
+                                <Gift size={120} />
+                            </div>
+                        </div>
+                    </section>
+                    
+                    {/* Navigation Bar */}
+                    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-2 py-3 flex justify-around">
+                        <button className="flex flex-col items-center text-purple-500">
+                            <Square size={20} />
+                            <span className="text-xs mt-1">Games</span>
+                        </button>
+                        <button className="flex flex-col items-center text-gray-500">
+                            <Trophy size={20} />
+                            <span className="text-xs mt-1">Rewards</span>
+                        </button>
+                        <button className="flex flex-col items-center text-gray-500">
+                            <Gift size={20} />
+                            <span className="text-xs mt-1">Bonus</span>
+                        </button>
+                        <button className="flex flex-col items-center text-gray-500">
+                            <Bell size={20} />
+                            <span className="text-xs mt-1">Alerts</span>
+                        </button>
+                        <button className="flex flex-col items-center text-gray-500">
+                            <User size={20} />
+                            <span className="text-xs mt-1">Profile</span>
+                        </button>
+                    </nav>
+                    
+                    {/* Add some padding at the bottom for the fixed nav */}
+                    <div className="h-16"></div>
+                </div>
+            );
+        };
+
+        // Game View Component to display games
+        const GameView = ({ game, onReturn }) => {
+            return (
+                <div className="game-container">
+                    {/* Game Header */}
+                    <div className="bg-gradient-to-r from-indigo-900 to-purple-900 px-4 py-3 flex justify-between items-center shadow-lg">
+                        <button 
+                            onClick={onReturn}
+                            className="flex items-center text-white hover:text-purple-300 transition"
+                        >
+                            <ArrowLeft size={20} className="mr-2" />
+                            <span>Back to Portal</span>
+                        </button>
+                        <div className="font-bold text-lg">{game.title}</div>
+                        <div className="w-24"></div> {/* Spacer for balance */}
+                    </div>
+                    
+                    {/* Game Frame */}
+                    <iframe 
+                        src={game.path} 
+                        className="game-iframe"
+                        title={game.title}
+                        sandbox="allow-scripts allow-same-origin"
+                    ></iframe>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<CasinoPortal />, document.getElementById('root'));
+    </script>
+</body>
+</html>
