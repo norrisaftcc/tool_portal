@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golden Fortune Slots - PULSE Play</title>
+    <!-- Game Bridge for Portal Integration -->
+    <script src="game-bridge.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -1134,6 +1136,77 @@
         
         // Start the game when page loads
         window.addEventListener('load', init);
+        
+        // GameBridge initialization for portal integration
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.GameBridge) {
+                GameBridge.init({
+                    debug: true,
+                    gameName: 'Golden Fortune'
+                });
+                
+                // Handle credit updates from the portal
+                GameBridge.onCreditsUpdated = function(newBalance) {
+                    console.log('Credits updated from portal:', newBalance);
+                    // Update the local credits display
+                    credits = newBalance;
+                    creditsDisplay.textContent = credits;
+                };
+                
+                // Override the spin function to communicate with the portal
+                const originalSpin = spin;
+                spin = function() {
+                    if (spinning || credits < baseBet * activePaylines) return;
+                    
+                    // Remember the original credits value before spinning
+                    const originalCredits = credits;
+                    
+                    // Call the original function
+                    originalSpin();
+                    
+                    // After the reels stop, check results and notify portal
+                    setTimeout(() => {
+                        // If we won something, notify the portal of net win
+                        // (current credits - original credits + bet amount)
+                        const totalBet = baseBet * activePaylines;
+                        const netWin = credits - originalCredits + totalBet;
+                        
+                        if (netWin > 0) {
+                            GameBridge.updateCredits(netWin, 'slots win');
+                        }
+                        
+                        // Send game completion stats to portal
+                        GameBridge.completeGame({
+                            bet: totalBet,
+                            netWin: netWin,
+                            paylines: activePaylines
+                        });
+                    }, 5000); // Wait for spin animation to complete
+                };
+                
+                // Override bonus choice handling to communicate with the portal
+                const originalHandleBonusChoice = handleBonusChoice;
+                handleBonusChoice = function(e) {
+                    const originalCredits = credits;
+                    
+                    // Call the original function
+                    originalHandleBonusChoice(e);
+                    
+                    // After bonus is complete, notify portal of net win
+                    setTimeout(() => {
+                        const netWin = credits - originalCredits;
+                        if (netWin > 0) {
+                            GameBridge.updateCredits(netWin, 'slots bonus win');
+                            GameBridge.unlockAchievement('bonus_round_win');
+                        }
+                    }, 2000);
+                };
+                
+                console.log('Slots game integrated with portal');
+            } else {
+                console.log('Running in standalone mode - portal features disabled');
+            }
+        });
     </script>
 </body>
 </html>

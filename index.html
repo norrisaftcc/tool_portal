@@ -23,121 +23,285 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-
+        
         /* Game container styles */
         .game-container {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 50;
-            background-color: #0A0A1A;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            z-index: 100;
+            background-color: #0a0a1a;
+            transform: translateY(100%);
+            transition: transform 0.5s ease-in-out;
         }
-
+        
+        .game-container.active {
+            transform: translateY(0);
+        }
+        
         .game-iframe {
-            flex: 1;
-            border: none;
             width: 100%;
             height: 100%;
+            border: none;
         }
-
-        /* Transition animations */
-        .fade-enter {
-            opacity: 0;
+        
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #D4AF37;
+            border: none;
+            border-radius: 30px;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 101;
+            display: flex;
+            align-items: center;
+            transition: background 0.3s ease;
         }
-        .fade-enter-active {
-            opacity: 1;
-            transition: opacity 300ms ease-in;
+        
+        .back-button:hover {
+            background: rgba(0, 0, 0, 0.8);
         }
-        .fade-exit {
-            opacity: 1;
+        
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #D4AF37;
+            animation: spin 1s infinite ease-in-out;
         }
-        .fade-exit-active {
-            opacity: 0;
-            transition: opacity 300ms ease-out;
+        
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
         }
     </style>
 </head>
 <body class="bg-gray-900">
     <div id="root"></div>
-
+    
     <script type="text/babel">
         // Import icons from Lucide
         const { Square, Trophy, Zap, Gift, Bell, Menu, Search, ChevronRight, User, LogIn, ArrowLeft } = lucide;
-
-        // Game constants
+        
+        // Game configuration
         const GAMES = {
-            BLACKJACK: {
+            blackjack: {
                 id: 'blackjack',
-                title: 'Blackjack Blitz',
+                name: 'Blackjack Blitz',
                 path: 'blackjack-game.html',
-                description: 'Classic casino card game where you aim to beat the dealer without going over 21.',
                 category: 'card',
+                hot: true,
                 multiplier: '2x',
                 playing: 256,
-                hot: true,
                 available: true
             },
-            SLOTS: {
+            slots: {
                 id: 'slots',
-                title: 'Golden Fortune',
+                name: 'Golden Fortune',
                 path: 'slots-html.html',
-                description: 'Colorful slot machine game with multiple paylines and bonus features.',
                 category: 'slots',
+                hot: true,
                 multiplier: '10x',
                 playing: 189,
-                hot: true,
                 available: true
             },
-            POKER: {
+            poker: {
                 id: 'poker',
-                title: 'Quick Poker',
+                name: 'Poker Rush',
                 path: '#',
-                description: 'Fast-paced poker variant with simplified rules and quick rounds.',
                 category: 'card',
+                hot: false,
                 multiplier: '5x',
                 playing: 328,
                 available: false
             },
-            ROULETTE: {
+            roulette: {
                 id: 'roulette',
-                title: 'Roulette Fever',
+                name: 'Roulette Fever',
                 path: '#',
-                description: 'Classic casino roulette with multiple betting options.',
                 category: 'table',
+                hot: false,
                 multiplier: '35x',
                 playing: 145,
                 available: false
             }
         };
-
+        
+        // Game Container Component
+        const GameContainer = ({ gameId, onClose }) => {
+            const [loading, setLoading] = React.useState(true);
+            const [error, setError] = React.useState(null);
+            const game = GAMES[gameId];
+            
+            if (!game) {
+                return (
+                    <div className="game-container active">
+                        <button className="back-button" onClick={onClose}>
+                            <ArrowLeft size={16} className="mr-2" /> Back to Portal
+                        </button>
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-white text-center">
+                                <h2 className="text-2xl mb-4">Game Not Found</h2>
+                                <p>The requested game could not be found.</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            
+            // Handle iframe load events
+            const handleIframeLoad = () => {
+                setLoading(false);
+            };
+            
+            const handleIframeError = () => {
+                setLoading(false);
+                setError("Failed to load the game. Please try again later.");
+            };
+            
+            return (
+                <div className="game-container active">
+                    <button className="back-button" onClick={onClose}>
+                        <ArrowLeft size={16} className="mr-2" /> Back to Portal
+                    </button>
+                    
+                    {loading && <div className="loading-spinner"></div>}
+                    
+                    {error ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-white text-center">
+                                <h2 className="text-2xl mb-4">Error</h2>
+                                <p>{error}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <iframe 
+                            src={game.path} 
+                            className="game-iframe" 
+                            onLoad={handleIframeLoad} 
+                            onError={handleIframeError}
+                            title={game.name}
+                        ></iframe>
+                    )}
+                </div>
+            );
+        };
+        
         // Main Casino Portal Component
         const CasinoPortal = () => {
-            // State for currently active game
-            const [activeGame, setActiveGame] = React.useState(null);
+            const [currentGame, setCurrentGame] = React.useState(null);
+            const [credits, setCredits] = React.useState(1000);
+            const [gameMessage, setGameMessage] = React.useState(null);
+            const messageTimeoutRef = React.useRef(null);
             
-            // Function to launch a game
-            const launchGame = (game) => {
-                if (game.available) {
-                    setActiveGame(game);
+            // Function to open a game
+            const openGame = (gameId) => {
+                const game = GAMES[gameId];
+                if (game && game.available) {
+                    setCurrentGame(gameId);
                 }
             };
             
-            // Function to return to the portal from a game
-            const returnToPortal = () => {
-                setActiveGame(null);
+            // Function to close the current game
+            const closeGame = () => {
+                setCurrentGame(null);
             };
-
-            // Render active game or portal
-            if (activeGame) {
-                return <GameView game={activeGame} onReturn={returnToPortal} />;
-            }
-
-            // Render portal if no game is active
+            
+            // Handle messages from games
+            React.useEffect(() => {
+                const handleGameMessage = (event) => {
+                    // Only handle messages from our games
+                    if (event.data && event.data.type === 'GAME_EVENT') {
+                        console.log('Received game message:', event.data);
+                        
+                        switch (event.data.action) {
+                            case 'UPDATE_CREDITS':
+                                const amount = parseInt(event.data.amount) || 0;
+                                setCredits(prevCredits => {
+                                    const newBalance = Math.max(0, prevCredits + amount);
+                                    
+                                    // Send confirmation back to game
+                                    try {
+                                        event.source.postMessage({
+                                            type: 'PORTAL_EVENT',
+                                            action: 'CREDITS_UPDATED',
+                                            newBalance
+                                        }, '*');
+                                    } catch (err) {
+                                        console.error('Error sending message to game:', err);
+                                    }
+                                    
+                                    // Show message about credits change
+                                    if (amount > 0) {
+                                        showGameMessage(`Won ${amount} credits!`, 'success');
+                                    } else if (amount < 0) {
+                                        showGameMessage(`Lost ${Math.abs(amount)} credits`, 'error');
+                                    }
+                                    
+                                    return newBalance;
+                                });
+                                break;
+                                
+                            case 'GAME_READY':
+                                console.log(`Game ${event.data.gameName} is ready`);
+                                
+                                // Send portal ready message back to game
+                                try {
+                                    event.source.postMessage({
+                                        type: 'PORTAL_EVENT',
+                                        action: 'PORTAL_READY',
+                                        portalName: 'PULSE Play'
+                                    }, '*');
+                                } catch (err) {
+                                    console.error('Error sending ready message to game:', err);
+                                }
+                                break;
+                                
+                            case 'ACHIEVEMENT_UNLOCKED':
+                                showGameMessage(`Achievement unlocked: ${event.data.achievementId}`, 'achievement');
+                                break;
+                                
+                            case 'GAME_COMPLETE':
+                                console.log('Game completed with stats:', event.data.stats);
+                                break;
+                        }
+                    }
+                };
+                
+                window.addEventListener('message', handleGameMessage);
+                return () => {
+                    window.removeEventListener('message', handleGameMessage);
+                };
+            }, []);
+            
+            // Function to show temporary game messages
+            const showGameMessage = (message, type = 'info') => {
+                setGameMessage({ text: message, type });
+                
+                // Clear previous timeout
+                if (messageTimeoutRef.current) {
+                    clearTimeout(messageTimeoutRef.current);
+                }
+                
+                // Set new timeout to clear message
+                messageTimeoutRef.current = setTimeout(() => {
+                    setGameMessage(null);
+                }, 3000);
+            };
+            
+            // Get all available games
+            const availableGames = Object.values(GAMES).filter(game => game.available);
+            
             return (
                 <div className="bg-gray-900 text-white min-h-screen">
                     {/* Header */}
@@ -149,6 +313,9 @@
                         </div>
                         
                         <div className="flex items-center space-x-4">
+                            <div className="mr-4 bg-gray-800 px-3 py-1 rounded-full text-yellow-400 font-bold text-sm">
+                                {credits} credits
+                            </div>
                             <button className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-full text-sm font-bold transition">
                                 Sign Up
                             </button>
@@ -172,7 +339,7 @@
                                     Quick games. Real rewards. Zero commitment.
                                 </p>
                                 <button 
-                                    onClick={() => launchGame(GAMES.BLACKJACK)}
+                                    onClick={() => openGame('blackjack')}
                                     className="bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-gray-900 font-bold px-6 py-3 rounded-full shadow-lg transition transform hover:scale-105"
                                 >
                                     PLAY NOW
@@ -186,20 +353,15 @@
                         {/* Featured Games Slider */}
                         <div className="relative -mt-6 px-4 pb-4">
                             <div className="flex overflow-x-auto pb-2 space-x-4 scrollbar-hide">
-                                {[
-                                    GAMES.BLACKJACK,
-                                    GAMES.SLOTS,
-                                    GAMES.POKER,
-                                    GAMES.ROULETTE
-                                ].map((game, index) => (
+                                {Object.values(GAMES).map((game, index) => (
                                     <div 
                                         key={index} 
-                                        className="relative flex-shrink-0 w-48 h-36 bg-gradient-to-br from-blue-600 to-purple-800 rounded-lg shadow-lg overflow-hidden cursor-pointer"
-                                        onClick={() => game.available && launchGame(game)}
+                                        className={`relative flex-shrink-0 w-48 h-36 bg-gradient-to-br from-blue-600 to-purple-800 rounded-lg shadow-lg overflow-hidden ${game.available ? 'cursor-pointer' : 'opacity-70'}`}
+                                        onClick={() => game.available && openGame(game.id)}
                                     >
                                         <div className="absolute inset-0 opacity-20 bg-pattern"></div>
                                         <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                                            <div className="text-sm font-bold">{game.title}</div>
+                                            <div className="text-sm font-bold">{game.name}</div>
                                             <div className="flex items-center mt-1">
                                                 {game.hot && (
                                                     <div className="text-xs text-yellow-400 flex items-center">
@@ -230,15 +392,15 @@
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {[
-                                { name: 'Card Games', game: GAMES.BLACKJACK, icon: <div className="text-red-500"><span className="text-xl">♠️</span></div> },
-                                { name: 'Slots', game: GAMES.SLOTS, icon: <div className="text-yellow-500"><Zap size={20} /></div> },
-                                { name: 'Table Games', game: GAMES.ROULETTE, icon: <div className="text-green-500"><span className="text-xl">🎲</span></div> },
-                                { name: 'Jackpots', path: '#', icon: <div className="text-purple-500"><Trophy size={20} /></div> }
+                                { name: 'Card Games', path: 'blackjack', icon: <div className="text-red-500"><span className="text-xl">♠️</span></div> },
+                                { name: 'Slots', path: 'slots', icon: <div className="text-yellow-500"><Zap size={20} /></div> },
+                                { name: 'Table Games', path: null, icon: <div className="text-green-500"><span className="text-xl">🎲</span></div> },
+                                { name: 'Jackpots', path: null, icon: <div className="text-purple-500"><Trophy size={20} /></div> }
                             ].map((category, index) => (
                                 <div 
                                     key={index} 
                                     className="bg-gray-800 rounded-lg p-4 text-center hover:bg-gray-700 transition cursor-pointer"
-                                    onClick={() => category.game && category.game.available && launchGame(category.game)}
+                                    onClick={() => category.path && openGame(category.path)}
                                 >
                                     <div className="flex justify-center mb-2">
                                         {category.icon}
@@ -264,18 +426,11 @@
                         </div>
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {[
-                                GAMES.BLACKJACK,
-                                GAMES.SLOTS,
-                                GAMES.POKER,
-                                GAMES.ROULETTE,
-                                { ...GAMES.ROULETTE, title: 'Roulette Master' },
-                                { id: 'dice', title: 'Dice Rush', path: '#', multiplier: '6x', playing: 203, available: false }
-                            ].map((game, index) => (
+                            {Object.values(GAMES).map((game, index) => (
                                 <div 
                                     key={index} 
                                     className={`relative bg-gray-800 rounded-lg overflow-hidden shadow-lg group ${game.available ? 'cursor-pointer' : 'opacity-70'}`}
-                                    onClick={() => game.available && launchGame(game)}
+                                    onClick={() => game.available && openGame(game.id)}
                                 >
                                     <div className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 relative">
                                         <div className="absolute top-2 left-2 bg-black/50 text-yellow-400 text-xs px-2 py-1 rounded-full flex items-center">
@@ -283,7 +438,7 @@
                                         </div>
                                     </div>
                                     <div className="p-3">
-                                        <h3 className="font-bold">{game.title}</h3>
+                                        <h3 className="font-bold">{game.name}</h3>
                                         <div className="text-xs text-gray-400 flex items-center">
                                             <User size={12} className="mr-1" /> {game.playing} playing
                                         </div>
@@ -291,7 +446,7 @@
                                             className={`mt-2 w-full ${game.available ? 'bg-purple-600 hover:bg-purple-500' : 'bg-gray-600'} text-white py-1 rounded text-sm font-medium transition`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (game.available) launchGame(game);
+                                                if (game.available) openGame(game.id);
                                             }}
                                             disabled={!game.available}
                                         >
@@ -324,7 +479,13 @@
                                         </div>
                                     ))}
                                 </div>
-                                <button className="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm transition">
+                                <button 
+                                    className="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm transition"
+                                    onClick={() => {
+                                        setCredits(prevCredits => prevCredits + 100);
+                                        alert('You received 100 bonus credits!');
+                                    }}
+                                >
                                     Claim Day 4 Bonus
                                 </button>
                             </div>
@@ -360,38 +521,29 @@
                     
                     {/* Add some padding at the bottom for the fixed nav */}
                     <div className="h-16"></div>
-                </div>
-            );
-        };
-
-        // Game View Component to display games
-        const GameView = ({ game, onReturn }) => {
-            return (
-                <div className="game-container">
-                    {/* Game Header */}
-                    <div className="bg-gradient-to-r from-indigo-900 to-purple-900 px-4 py-3 flex justify-between items-center shadow-lg">
-                        <button 
-                            onClick={onReturn}
-                            className="flex items-center text-white hover:text-purple-300 transition"
-                        >
-                            <ArrowLeft size={20} className="mr-2" />
-                            <span>Back to Portal</span>
-                        </button>
-                        <div className="font-bold text-lg">{game.title}</div>
-                        <div className="w-24"></div> {/* Spacer for balance */}
-                    </div>
                     
-                    {/* Game Frame */}
-                    <iframe 
-                        src={game.path} 
-                        className="game-iframe"
-                        title={game.title}
-                        sandbox="allow-scripts allow-same-origin"
-                    ></iframe>
+                    {/* Game message toast */}
+                    {gameMessage && (
+                        <div className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full shadow-lg z-50 flex items-center ${
+                            gameMessage.type === 'success' ? 'bg-green-600' : 
+                            gameMessage.type === 'error' ? 'bg-red-600' : 
+                            gameMessage.type === 'achievement' ? 'bg-yellow-600' : 
+                            'bg-blue-600'
+                        }`}>
+                            {gameMessage.type === 'success' && <Trophy size={16} className="mr-2" />}
+                            {gameMessage.type === 'achievement' && <Gift size={16} className="mr-2" />}
+                            <span>{gameMessage.text}</span>
+                        </div>
+                    )}
+                    
+                    {/* Game container (shows when a game is open) */}
+                    {currentGame && (
+                        <GameContainer gameId={currentGame} onClose={closeGame} />
+                    )}
                 </div>
             );
         };
-
+        
         // Render the app
         ReactDOM.render(<CasinoPortal />, document.getElementById('root'));
     </script>

@@ -1,111 +1,189 @@
 # Game Integration Guide for PULSE Play Portal
 
-This guide explains how to properly integrate games into the PULSE Play casino games portal.
+This guide explains how to integrate games into the PULSE Play casino games portal.
 
-## Portal Architecture
+## Overview
 
-The PULSE Play portal is a React-based application that loads and displays casino games. The portal provides:
+The PULSE Play portal is built with React and uses a centralized game container system. Games can be integrated in two ways:
 
-- A centralized navigation system
-- Game discovery features
-- Authentication and player profile management
-- Credits/coins system (future)
+1. **Iframe Integration** (Simplest): Games are loaded as standalone HTML files in an iframe
+2. **Component Integration** (Advanced): Games are built as React components that can directly interact with the portal
 
-## Integration Methods
+## Game Configuration
 
-There are two ways to integrate games into the portal:
+All games are defined in the `GAMES` object in `index.html`. To add a new game, add a new entry to this object:
 
-### 1. Iframe Integration (Simple)
+```javascript
+const GAMES = {
+    // Existing games...
+    
+    yourGameId: {
+        id: 'yourGameId',            // Unique identifier for the game
+        name: 'Your Game Name',      // Display name
+        path: 'your-game.html',      // Path to game HTML file or component
+        category: 'slots',           // Game category (card, slots, table, etc.)
+        hot: false,                  // Featured as "hot" game?
+        multiplier: '5x',            // Multiplier for marketing
+        playing: 100,                // Number of fake players
+        available: true              // Is the game available or coming soon?
+    }
+};
+```
 
-The simplest integration method is through iframes. The portal loads the game HTML files in iframes, providing:
+## Option 1: Iframe Integration (Recommended for HTML/JS Games)
 
-- Basic isolation between games
-- Simple back navigation to the portal
-- Support for existing standalone games
+### Step 1: Create Your Game HTML File
 
-**Limitations:**
-- Limited communication between game and portal
-- Potential performance issues
-- Cannot easily share state with the portal (e.g., player credits)
+Create your game as a standalone HTML file including all necessary styles and scripts. 
 
-### 2. Component Integration (Recommended)
+Example structure:
 
-The recommended approach is to integrate games as React components, using the `GameContainer` component:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Game Name</title>
+    <style>
+        /* Your game styles */
+    </style>
+</head>
+<body>
+    <!-- Your game HTML -->
+    
+    <script>
+        // Your game JavaScript
+    </script>
+</body>
+</html>
+```
 
-- Better performance
-- Direct access to portal state
-- Ability to share styling and resources
-- Seamless integration with portal features
+### Step 2: Add Game to Configuration
 
-## Integration Steps
+Add your game to the `GAMES` object in `index.html` as shown above.
 
-### For Iframe Integration:
+### Step 3: Test Integration
 
-1. Create your game as a standalone HTML file
-2. Remove any "Back to Portal" buttons (navigation is handled by the portal)
-3. Ensure your game works properly when loaded in an iframe
-4. Add your game to the `GAMES` object in `index.html`
+Test that your game loads properly in the portal by:
+1. Clicking on your game card in the portal
+2. Ensuring the game loads in the iframe
+3. Testing that the "Back to Portal" button works
 
-### For Component Integration:
+## Option 2: Component Integration (Advanced)
 
-1. Create your game logic as a module with init and cleanup functions
-2. Use the `GameContainer` component in `game-container.js` to wrap your game
-3. Update the portal to use your component instead of the iframe
-4. Add your game to the `GAMES` object in `index.html`
+For more advanced integration, you can build your game as a React component. This allows for direct interaction with the portal's state management.
 
-## Game Structure Requirements
+### Step 1: Create Your Game Component
 
-For proper integration, games should:
+Create a new JavaScript file for your game component:
 
-1. Not use their own navigation back to the portal
-2. Be responsive and adapt to the container size
-3. Use event listeners rather than inline `onclick` attributes
-4. Avoid CSS conflicts with the portal
-5. Support cleanup when game is closed
+```javascript
+// game-component.js
+const YourGame = ({ credits, onCreditChange }) => {
+    // Game state and logic
+    
+    // Example of updating credits
+    const winGame = () => {
+        onCreditChange(prevCredits => prevCredits + 100);
+    };
+    
+    return (
+        <div className="your-game">
+            {/* Game UI */}
+            <div>Credits: {credits}</div>
+            <button onClick={winGame}>Win Game</button>
+        </div>
+    );
+};
+```
 
-## Example: Converting Existing Games
+### Step 2: Modify GameContainer Component
 
-To convert an existing standalone game for portal integration:
+Update the `GameContainer` component in `index.html` to support component-based games:
 
-1. Extract the game logic into a module
-2. Create init and cleanup functions
-3. Remove any portal navigation
-4. Ensure the game container has flexible dimensions
-5. Test the game within the portal
+```javascript
+const GameContainer = ({ gameId, onClose, credits, onCreditChange }) => {
+    // Existing code...
+    
+    // For component-based games
+    if (game.component) {
+        const GameComponent = game.component;
+        return (
+            <div className="game-container active">
+                <button className="back-button" onClick={onClose}>
+                    <ArrowLeft size={16} className="mr-2" /> Back to Portal
+                </button>
+                
+                <GameComponent 
+                    credits={credits}
+                    onCreditChange={onCreditChange}
+                />
+            </div>
+        );
+    }
+    
+    // For iframe-based games (existing code)
+    return (
+        // Existing iframe implementation...
+    );
+};
+```
 
-## Handling Game State
+## Best Practices
 
-The portal provides:
+1. **Currency Management**: 
+   - For iframe games, implement a postMessage API to communicate with the parent portal
+   - For component games, use the provided `credits` and `onCreditChange` props
 
-- Game selection and navigation
-- Player profile and credits (future)
+2. **Responsive Design**:
+   - Games should be responsive and work well on both desktop and mobile
+   - Test your games on various screen sizes
 
-Your game should:
+3. **Loading Performance**:
+   - Minimize asset sizes
+   - Use progressive loading for larger games
+   - Provide loading indicators
 
-- Initialize with player data from the portal
-- Update credits/stats through portal mechanisms
-- Clean up resources when game is closed
+4. **Error Handling**:
+   - Implement proper error boundaries
+   - Gracefully handle game failures
 
-## Testing Your Integration
+## Communication Protocol for Iframe Games
 
-To test your game integration:
+To communicate between the game iframe and the portal, use the following postMessage protocol:
 
-1. Make sure `index.html` is serving correctly
-2. Test that your game loads properly in the portal
-3. Verify that navigation works (back to portal)
-4. Check that game state is preserved correctly
-5. Test on different screen sizes
+```javascript
+// From game to portal
+window.parent.postMessage({
+    type: 'GAME_EVENT',
+    action: 'UPDATE_CREDITS',
+    amount: 100  // Amount to add (positive) or subtract (negative)
+}, '*');
+
+// Additional actions
+// action: 'GAME_COMPLETE' - Notify the portal the game is complete
+// action: 'ACHIEVEMENT_UNLOCKED', achievementId: 'achievement1' - Unlock an achievement
+```
 
 ## Troubleshooting
 
-Common issues:
+### Game Doesn't Load
+- Check the console for errors
+- Verify the path in the GAMES configuration is correct
+- Ensure all game assets are properly referenced
 
-- Game doesn't load: Check file paths and scripts
-- Styling issues: Look for CSS conflicts
-- Performance problems: Optimize resource loading
-- Navigation issues: Ensure portal handles all navigation
+### Credit Updates Not Working
+- For iframe games, verify postMessage is working
+- For component games, check that onCreditChange is being called
 
-## Additional Resources
+### Game Display Issues
+- Check for CSS conflicts
+- Verify the game is responsive
+- Test on multiple browsers
 
-- React documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- PULSE Play development: See README_dev_plans.md
+## Example Games
+
+See the existing games for reference:
+- `blackjack-game.html` - Example of a card game
+- `slots-html.html` - Example of a slot machine game

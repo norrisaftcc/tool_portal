@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vegas Style Blackjack</title>
+    <!-- Game Bridge for Portal Integration -->
+    <script src="game-bridge.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -53,30 +55,7 @@
             z-index: -1;
         }
 
-        .portal-link {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px 15px;
-            border-radius: 30px;
-            text-decoration: none;
-            color: #D4AF37;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
-            z-index: 100;
-        }
-
-        .portal-link:hover {
-            background: rgba(0, 0, 0, 0.8);
-            transform: scale(1.05);
-        }
-
-        .portal-link span {
-            margin-left: 5px;
-        }
+        /* Portal link styles removed - navigation handled by portal */
         
         h1 {
             margin-top: 0;
@@ -515,7 +494,7 @@
     
     <div class="game-container">
         <div class="table-felt"></div>
-        <!-- Portal navigation is handled by the parent frame -->
+        <!-- Portal navigation is handled by the portal itself -->
         
         <div class="slot-light slot-light-1"></div>
         <div class="slot-light slot-light-2"></div>
@@ -946,6 +925,80 @@
         
         // Start the game when page loads
         window.addEventListener('load', init);
+        
+        // GameBridge initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.GameBridge) {
+                GameBridge.init({
+                    debug: true,
+                    gameName: 'Blackjack Blitz'
+                });
+                
+                // Handle credit updates from the portal
+                GameBridge.onCreditsUpdated = function(newBalance) {
+                    console.log('Credits updated from portal:', newBalance);
+                    // Update the local credits display
+                    credits = newBalance;
+                    creditsEl.textContent = credits;
+                };
+                
+                // Override the existing handleGameEnd function to communicate with the portal
+                const originalHandleGameEnd = handleGameEnd;
+                handleGameEnd = function() {
+                    const playerScore = calculateScore(playerHand);
+                    const dealerScore = calculateScore(dealerHand);
+                    
+                    // Call the original function first
+                    originalHandleGameEnd();
+                    
+                    // If we're in the portal, sync up the credits
+                    if (playerScore <= 21) {
+                        if (dealerScore > 21 || playerScore > dealerScore) {
+                            // Player wins
+                            const winAmount = playerHand.length === 2 && playerScore === 21 ? 
+                                Math.floor(currentBet * 2.5) : currentBet * 2;
+                            
+                            // Notify portal of net win (minus the bet which was already deducted)
+                            GameBridge.updateCredits(winAmount, 'blackjack win');
+                        } else if (playerScore < dealerScore) {
+                            // Player loses (bet already deducted so no need to update)
+                        } else {
+                            // Push - return bet
+                            GameBridge.updateCredits(currentBet, 'blackjack push');
+                        }
+                    }
+                    
+                    // Send game completion stats to portal
+                    GameBridge.completeGame({
+                        playerScore: playerScore,
+                        dealerScore: dealerScore,
+                        result: playerScore > 21 ? 'bust' : 
+                               dealerScore > 21 ? 'dealer_bust' :
+                               playerScore > dealerScore ? 'win' :
+                               playerScore < dealerScore ? 'lose' : 'push'
+                    });
+                };
+                
+                // Override the startGame function to communicate with the portal
+                const originalStartGame = startGame;
+                startGame = function() {
+                    if (credits < currentBet) {
+                        showMessage("Not enough credits!");
+                        return;
+                    }
+                    
+                    // Call the original function
+                    originalStartGame();
+                    
+                    // We don't need to update credits in the portal here since
+                    // the original function already updates our local credits
+                };
+                
+                console.log('Blackjack game integrated with portal');
+            } else {
+                console.log('Running in standalone mode - portal features disabled');
+            }
+        });
     </script>
 </body>
 </html>
